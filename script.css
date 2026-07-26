@@ -1,0 +1,25 @@
+// Hent modal-elementer
+var modal = document.getElementById("myModal");
+var modalImg = document.getElementById("modalImg");
+var modalName = document.getElementById("modalName");
+var modalDescription = document.getElementById("modalDescription");
+var downloadLink = document.getElementById("downloadLink");
+
+function openModal(imgSrc, name, description) {
+    modal.style.display = "block";
+    modalImg.src = imgSrc;
+    modalName.innerText = name;
+    modalDescription.innerText = description;
+    downloadLink.href = imgSrc;
+}
+
+function closeModal() {
+    modal.style.display = "none";
+}
+
+// Luk modal ved klik uden for billedet
+window.onclick = function(event) {
+    if (event.target == modal) {
+        closeModal();
+    }
+}
