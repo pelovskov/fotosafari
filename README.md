@@ -1,4 +1,4 @@
-# fotosafari
+# Fotosafari
 Alle filer til fotosafari
 Der arbejdes lige nu med at få finpudset systemet. Det indebærer blandt andet at der skal laves en komplet tejnisk vejledning, så andre end mig selv kan installere og bruge Fotosafari.
 ## Vejledninger
