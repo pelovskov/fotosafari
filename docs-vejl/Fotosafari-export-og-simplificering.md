@@ -1,3 +1,5 @@
+# Dialog med Claude om fremtiden
+
 > From: https://claude.ai/chat/4f3fa6d5-9ac1-4513-9247-90fd2ef7a54a
 
 # you asked
