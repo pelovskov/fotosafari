@@ -6,4 +6,33 @@ Ud over den tekniske vejledning så er der ved at blive udarbejdet en egentlig b
 
 Desværre er det meget varmt i denne sommer, så der går nok et par dage - :)
 
+## Projektets filer
+
+```
+ |-- admin.php
+ |-- config.json
+ |-- download_zip.php
+ |-- galleri_masonry.php
+ |-- galleri.php
+ |-- LICENSE
+ |-- login.php
+ |-- logout.php
+ |-- mange.php
+ |-- minside.php
+ |-- qr-upload-2.html
+ |-- qr-upload.html
+ |-- rate_image.php
+ |-- ratings.json
+ |-- README.md
+ |-- script.css
+ |-- style.css
+ |-- upload.php
+ |-- uploads
+ | |-- billede_68e9017da22ff5.74065224.jpg
+ | |-- billede_68e9017da22ff5.74065224.txt
+ | |-- billede_68e914830ee7e8.81396228.jpg
+ | |-- billede_68e914830ee7e8.81396228.txt
+ |-- users.php
+```
+
 poul erik
