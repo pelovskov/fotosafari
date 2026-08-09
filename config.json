@@ -1,7 +1,7 @@
 {
     "projektNavn": "Fotosafari",
     "underOverskrift": "Sammen fort\u00e6ller vi en interessant historie ",
-    "footerTekst": "SFB app - Poul Erik L\u00f8vskov - 2025",
+    "footerTekst": "SFB app - Poul Erik L\u00f8vskov - 2026",
     "uploadStart": "2026-01-23",
     "uploadEnd": "2026-09-04",
     "cta_buttons": [
@@ -21,6 +21,6 @@
             "link": ""
         }
     ],
-    "ratings_enabled": true,
+    "ratings_enabled": false,
     "map_enabled": true
 }
