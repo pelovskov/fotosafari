@@ -16,7 +16,7 @@
  */
 
 $users = [
-    'lovskov' => '$2b$12$qBDoFNUW3fdVfL7WkHyAs..yYm/v58doIo/tqNvN6.XD4UYiQLphi',
+    'overadmin' => '$2b$12$qBDoFNUW3fdVfL7WkHyAs..yYm/v58doIo/tqNvN6.XD4UYiQLphi',
     'anna' => '$2b$12$GQ0MMkQEJzLpxiO0vUoCbujer/yNLflb87xGB5SyOiWYstr8vNBiu',
     'peter' => '$2b$12$jKA4IRowrq4euf9jBixzz.uNo9.wtmvIB8nDCEF4g5j2uxBkCVvia',
 ];
