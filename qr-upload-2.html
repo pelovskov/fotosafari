@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Kode Generator (Med Nøgler)</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #e0e0e0; max-width: 800px; margin: 20px auto; padding: 0 20px; background-color: #121212; }
+        .container { background-color: #1e1e1e; padding: 30px; border-radius: 8px; border: 1px solid #333; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+        h1 { text-align: center; color: #ffffff; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; color: #bbbbbb; }
+        input[type="url"], textarea, select { width: 100%; padding: 12px; margin-bottom: 20px; border: 1px solid #444; border-radius: 4px; box-sizing: border-box; font-size: 16px; background-color: #2c2c2c; color: #ffffff; }
+        textarea { height: 150px; resize: vertical; }
+        button { display: block; width: 100%; padding: 15px; background-color: #0d6efd; color: white; border: none; border-radius: 4px; font-size: 18px; font-weight: bold; cursor: pointer; transition: background-color 0.2s; }
+        button:hover { background-color: #0b5ed7; }
+        button:disabled { background-color: #555; color: #aaa; cursor: not-allowed; }
+        #status { margin-top: 20px; text-align: center; font-style: italic; color: #999; min-height: 24px; }
+        #tempCanvas { display: none; }
+        .valg { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 20px; background: #242424; border: 1px solid #383838; border-radius: 4px; padding: 12px 14px; }
+        .valg input[type="checkbox"] { width: 18px; height: 18px; margin-top: 3px; accent-color: #0d6efd; flex: none; }
+        .valg label { margin-bottom: 2px; font-weight: 600; color: #ddd; }
+        .valg .hjaelp { font-size: 0.82em; color: #999; line-height: 1.4; }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>QR Kode Generator</h1>
+        
+        <label for="baseUrl">Basis URL (til upload.php):</label>
+        <input type="url" id="baseUrl" value="">
+        <p style="margin-top:-14px; font-size:0.8em; color:#999;">Udfyldes automatisk ud fra den mappe siden ligger i lige nu - ret kun hvis noget ser forkert ud.</p>
+
+        <label for="groupSelect">Vælg Gruppe (Lag på kortet):</label>
+        <select id="groupSelect">
+            <option value="A">Gruppe A (Standard)</option>
+            <option value="B">Gruppe B</option>
+            <option value="C">Gruppe C</option>
+        </select>
+
+        <label for="names">Navne (ét navn pr. linje):</label>
+        <textarea id="names" placeholder="Peter Jensen&#10;Hanne Nielsen&#10;Lars Olesen"></textarea>
+
+        <div class="valg">
+            <input type="checkbox" id="visUrl" checked>
+            <div>
+                <label for="visUrl">Skriv adressen under navnet</label>
+                <div class="hjaelp">Adressen ombrydes automatisk over et par linjer, så den kan tastes ind på en PC. Uden "https://" foran - det tilføjer browseren selv.</div>
+            </div>
+        </div>
+
+        <button id="generateBtn">Generér og Download ZIP</button>
+        <p id="status"></p>
+    </div>
+
+    <canvas id="tempCanvas"></canvas>
+
+    <script>
+        // Sæt automatisk basis-URL ud fra den mappe, siden faktisk ligger i lige nu.
+        // Betyder at hvis du kloner hele mappen til et nyt projekt (fx /projekt2/),
+        // peger denne side selv på det rigtige upload.php - uden manuel rettelse.
+        document.getElementById('baseUrl').value =
+            window.location.href.replace(/qr-upload\.html.*$/, 'upload.php');
+
+        const QR_SIZE = 250;
+        const PADDING = 20;
+        const URL_FONT = '13px "Courier New", Courier, monospace';
+
+        // Skjult canvas der kun bruges til at måle tekstbredder før vi kender kortets højde.
+        const maalCtx = document.createElement('canvas').getContext('2d');
+
+        document.getElementById('generateBtn').addEventListener('click', async function() {
+            const baseUrl = document.getElementById('baseUrl').value;
+            const group = document.getElementById('groupSelect').value;
+            const namesInput = document.getElementById('names').value;
+            const names = namesInput.split('\n').filter(name => name.trim() !== '');
+            const visUrl = document.getElementById('visUrl').checked;
+            const statusEl = document.getElementById('status');
+            const generateBtn = this;
+
+            if (!baseUrl.trim() || names.length === 0) {
+                statusEl.textContent = 'Fejl: Udfyld URL og mindst ét navn.'; statusEl.style.color = '#ff6b6b'; return;
+            }
+
+            generateBtn.disabled = true; statusEl.style.color = '#999';
+            const zip = new JSZip();
+            const canvas = document.getElementById('tempCanvas');
+            const raekker = [];
+
+            for (let i = 0; i < names.length; i++) {
+                const name = names[i].trim();
+                statusEl.textContent = `Genererer ${i + 1} ud af ${names.length}...`;
+                
+                // GENERER UNIK NØGLE (8 tegn)
+                const key = Math.random().toString(36).substring(2, 10);
+
+                // URL indeholder nu både navn, gruppe OG nøgle
+                const fullUrl = `${baseUrl}?navn=${encodeURIComponent(name)}&gruppe=${group}&key=${key}`;
+                raekker.push({ navn: name, gruppe: group, url: fullUrl });
+
+                const qrCodeDataUrl = await generateQrCodeDataUrl(fullUrl, QR_SIZE);
+                await drawFinalImage(canvas, qrCodeDataUrl, name, group, visUrl ? fullUrl : null);
+                
+                const blob = dataURLtoBlob(canvas.toDataURL('image/png'));
+                const fileName = `${group}_${name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.png`;
+                zip.file(fileName, blob);
+            }
+
+            // Til PC-brugerne: en klikbar oversigt og en ren tekstfil med alle links.
+            zip.file('oversigt.html', byggOversigt(raekker, group));
+            zip.file('links.txt', raekker.map(r => `${r.navn}\t${r.gruppe}\t${r.url}`).join('\r\n'));
+
+            statusEl.textContent = 'Pakker ZIP-fil...';
+            zip.generateAsync({ type: "blob" }).then(function(content) {
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(content);
+                link.download = `qr-koder-gruppe-${group}.zip`;
+                document.body.appendChild(link); link.click(); document.body.removeChild(link);
+                statusEl.textContent = `Færdig! Downloadet.`; statusEl.style.color = '#28a745'; generateBtn.disabled = false;
+            });
+        });
+
+        function generateQrCodeDataUrl(text, size) {
+            return new Promise((resolve) => {
+                const tempDiv = document.createElement('div');
+                new QRCode(tempDiv, { text: text, width: size, height: size, correctLevel: QRCode.CorrectLevel.H });
+                setTimeout(() => { resolve(tempDiv.querySelector('canvas').toDataURL()); }, 50);
+            });
+        }
+
+        // Ombryder en lang URL tegn for tegn, da der ikke er mellemrum at bryde ved.
+        function ombrydTekst(tekst, font, maxBredde) {
+            maalCtx.font = font;
+            const linjer = [];
+            let linje = '';
+            for (const tegn of tekst) {
+                if (linje !== '' && maalCtx.measureText(linje + tegn).width > maxBredde) {
+                    linjer.push(linje);
+                    linje = tegn;
+                } else {
+                    linje += tegn;
+                }
+            }
+            if (linje !== '') linjer.push(linje);
+            return linjer;
+        }
+
+        function drawFinalImage(canvas, qrCodeDataUrl, name, group, url) {
+            return new Promise((resolve) => {
+                // "https://" udelades - browseren sætter det selv på, og det sparer en halv linje.
+                const visning = url ? url.replace(/^https?:\/\//, '') : null;
+                const urlLinjer = visning ? ombrydTekst(visning, URL_FONT, QR_SIZE) : [];
+
+                const w = QR_SIZE + (2 * PADDING);
+                let h = PADDING + QR_SIZE + 30 + 20 + 6 + PADDING;
+                if (urlLinjer.length) h += 28 + (urlLinjer.length * 16);
+
+                // Bemærk: at sætte width/height nulstiller canvas - derfor hentes ctx bagefter.
+                canvas.width = w; canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = 'white'; ctx.fillRect(0, 0, w, h);
+
+                const qrImg = new Image();
+                qrImg.onload = function() {
+                    ctx.drawImage(qrImg, PADDING, PADDING, QR_SIZE, QR_SIZE);
+                    ctx.textAlign = 'center';
+
+                    let y = PADDING + QR_SIZE + 30;
+                    ctx.fillStyle = 'black'; ctx.font = 'bold 20px Arial';
+                    ctx.fillText(name, w / 2, y);
+
+                    y += 20;
+                    ctx.fillStyle = '#555'; ctx.font = '14px Arial';
+                    ctx.fillText(`Gruppe ${group}`, w / 2, y);
+
+                    if (urlLinjer.length) {
+                        y += 14;
+                        ctx.strokeStyle = '#d0d0d0'; ctx.lineWidth = 1;
+                        ctx.beginPath(); ctx.moveTo(PADDING, y + 0.5); ctx.lineTo(w - PADDING, y + 0.5); ctx.stroke();
+                        y += 20;
+                        ctx.fillStyle = '#222'; ctx.font = URL_FONT;
+                        for (const linje of urlLinjer) {
+                            ctx.fillText(linje, w / 2, y);
+                            y += 16;
+                        }
+                    }
+                    resolve();
+                };
+                qrImg.src = qrCodeDataUrl;
+            });
+        }
+
+        function escapeHtml(s) {
+            return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        }
+
+        // Klikbar oversigt der lægges med i ZIP-filen - beregnet til PC-brug.
+        function byggOversigt(raekker, group) {
+            const rows = raekker.map(r => `
+        <tr>
+          <td class="navn">${escapeHtml(r.navn)}</td>
+          <td><a href="${escapeHtml(r.url)}" target="_blank" rel="noopener">Åbn upload-siden</a><div class="url">${escapeHtml(r.url)}</div></td>
+          <td><button type="button" onclick="kopier(this,'${escapeHtml(r.url)}')">Kopiér link</button></td>
+        </tr>`).join('');
+
+            return `<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deltagerlinks - Gruppe ${escapeHtml(group)}</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height:1.6; color:#222; max-width:900px; margin:24px auto; padding:0 20px; }
+  h1 { margin-bottom:4px; }
+  p.intro { color:#555; margin-top:0; }
+  table { border-collapse:collapse; width:100%; margin-top:20px; }
+  th, td { text-align:left; padding:10px 12px; border-bottom:1px solid #e2e2e2; vertical-align:top; }
+  th { background:#f4f4f4; }
+  td.navn { font-weight:600; white-space:nowrap; }
+  .url { font-family:"Courier New",monospace; font-size:0.78em; color:#777; word-break:break-all; margin-top:4px; }
+  button { padding:7px 12px; font-size:0.9em; cursor:pointer; border:1px solid #bbb; border-radius:4px; background:#fff; }
+  button:hover { background:#f0f0f0; }
+  @media print { button { display:none; } a { color:#000; text-decoration:none; } }
+</style>
+</head>
+<body>
+  <h1>Deltagerlinks - Gruppe ${escapeHtml(group)}</h1>
+  <p class="intro">Hvert link er personligt og hører til én deltager. Åbn filen på en PC og klik - eller kopiér linket og send det til deltageren.</p>
+  <table>
+    <thead><tr><th>Navn</th><th>Link</th><th></th></tr></thead>
+    <tbody>${rows}
+    </tbody>
+  </table>
+<script>
+function kopier(btn, url) {
+  navigator.clipboard.writeText(url).then(function() {
+    var gammel = btn.textContent;
+    btn.textContent = 'Kopieret';
+    setTimeout(function(){ btn.textContent = gammel; }, 1500);
+  });
+}
+<\/script>
+</body>
+</html>`;
+        }
+
+        function dataURLtoBlob(dataurl) {
+            const arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1];
+            const bstr = atob(arr[1]); let n = bstr.length; const u8arr = new Uint8Array(n);
+            while(n--){ u8arr[n] = bstr.charCodeAt(n); }
+            return new Blob([u8arr], {type:mime});
+        }
+    </script>
+</body>
+</html>
