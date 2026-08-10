@@ -48,8 +48,19 @@ Det er her det hele kan administreres. Admin kan slette og rette uploads, men og
 - **login.php** og **logout.php** Det er systemfiler som sørger for at man kan logge ind og logge ud. De tilgås ikke direkte, men via adminsiden.
 - **mange.php** Det er en ny funktion, som giver mulighed for at uploade flere billeder på en gang. Den er tiltænkt en administrator eller leder på fotosafariprojektet.
 - **minside.php** Det er brugerens egen side. Kan tilgås via QR kode eller linket som danner QR koden. Herfra kan den enkelte bruger rette lidt på beskrivelsen eller slette et billede.
-- **qr-upload-2.html**
+- **qr-upload-2.html** Det er en særlig side, som en admin eller leder kan undskrive deltagernes navne og så få en zipfil med villedfiler med QR kode og særligt link til "min side".
+- **qr-upload.html** En mere simpel udgave af QR kode generatoren.
+- **rate_image.php** En systemfil, som styrer ratings - hvis det er slået til i systemet. Det er admin der kan sætte ratings til eller fra.
+- **rate_image.php** Det er denne fil.
+- **script.css og style.css** systemfiler der sørger for at alt virker og ser pænt ud.
+- **upload.php** Det er siden som man kommer til via QR koden eller link. Kan også tilgås direkte, så skal man selv skrive sit navn og har ingen "Min Side".
+- **uploads** Det er mappen hvor alle billeder og beskrivelser findes.
+- **users.php** Filen hvor admin brugere oprettes og deres hashede adgangskode befinder sig.
 
+## Det var systemet
+Det er hvad systemet består af. Hver gang der startes en ny fotosafari, laver vi en klon af disse filer og overdrager brugernavn og adgangskoder til en elle rflere administratorer.
 
+God fornøjelse med Fotosafari
 
-poul erik
+**Poul Erik Løvskov**
+
