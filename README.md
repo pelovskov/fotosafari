@@ -34,5 +34,10 @@ Desværre er det meget varmt i denne sommer, så der går nok et par dage - :)
  | |-- billede_68e914830ee7e8.81396228.txt
  |-- users.php
 ```
+----
 
+## Det bruges filerne til
+
+**admin.php**
+Det er her det hele kan administreres. Admin kan slette og rette uploads, men også tilpasse navn o funktioner for fotosafari systemet.
 poul erik
