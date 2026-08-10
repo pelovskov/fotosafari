@@ -38,6 +38,11 @@ Desværre er det meget varmt i denne sommer, så der går nok et par dage - :)
 
 ## Det bruges filerne til
 
-**admin.php**
-Det er her det hele kan administreres. Admin kan slette og rette uploads, men også tilpasse navn o funktioner for fotosafari systemet.
+- **admin.php**
+Det er her det hele kan administreres. Admin kan slette og rette uploads, men også tilpasse navn o funktioner for fotosafari systemet. Der kan indstilles hvornår systemet er åbent for upload, om der skal være stjerne ratings, tilføje CTA knapper, downloade alle billeder mm. der kan være flere administratorere.
+- **config.json**
+- xx
+
+
+
 poul erik
