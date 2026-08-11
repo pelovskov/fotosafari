@@ -4,6 +4,6 @@ Der arbejdes lige nu med at få finpudset systemet. Det indebærer blandt andet 
 ## Vejledninger
 Ud over den tekniske vejledning så er der ved at blive udarbejdet en egentlig brugervejledning.
 
-Desværre er det meget varmt i denne sommer, så der går nok et par dage - :)
+Desværre er det meget varmt i denne sommer, så der går nok et par dage - :) - [Eksempel](https://sfbbilleder.eu/over/pel/pic/galleri.php)
 
 poul erik
