@@ -43,6 +43,15 @@ function boostSaturation($image, $factor) {
     }
 }
 
+/** GPS-koordinat fra EXIF (grader/minutter/sekunder) til decimalgrader. */
+function toDec($c, $h) {
+    $d = explode('/', $c[0]); $d = $d[0] / max(1, $d[1]);
+    $m = explode('/', $c[1]); $m = $m[0] / max(1, $m[1]);
+    $s = explode('/', $c[2]); $s = $s[0] / max(1, $s[1]);
+    $val = $d + ($m / 60) + ($s / 3600);
+    return ($h == 'S' || $h == 'W') ? -$val : $val;
+}
+
 $configFile = 'config.json';
 $defaultConfig = [ 'projektNavn' => 'Mit Projekt', 'underOverskrift' => '', 'footerTekst' => '', 'uploadStart' => '', 'uploadEnd' => '' ];
 $config = file_exists($configFile) ? json_decode(file_get_contents($configFile), true) : $defaultConfig;
@@ -69,10 +78,35 @@ if (isset($_GET['key'])) { $user_key = htmlspecialchars($_GET['key']); $_SESSION
 elseif (isset($_SESSION['user_key'])) { $user_key = $_SESSION['user_key']; }
 
 $upload_success = false; $error_message = '';
-if ($isUploadOpen && $_SERVER["REQUEST_METHOD"] == "POST" && isset($_FILES["image"])) {
+
+// NYT: Hvis hele forsendelsen blev afvist (større end post_max_size), er både
+// $_POST og $_FILES tomme. Uden dette tjek kom formularen bare tavst tilbage.
+if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($_POST) && empty($_FILES)) {
+    $error_message = "Billedet var for stort til at blive sendt. Sæt telefonens kameraopløsning ned, eller vælg et mindre billede.";
+}
+elseif ($isUploadOpen && $_SERVER["REQUEST_METHOD"] == "POST" && isset($_FILES["image"])) {
     if (isset($_POST['name'])) { $_SESSION['last_used_name'] = htmlspecialchars($_POST['name']); }
     if (isset($_POST['group_hidden'])) { $current_group = htmlspecialchars($_POST['group_hidden']); $_SESSION['last_used_group'] = $current_group; }
     if (isset($_POST['key_hidden'])) { $user_key = htmlspecialchars($_POST['key_hidden']); $_SESSION['user_key'] = $user_key; }
+
+    // NYT: Fortæl hvad der gik galt, i stedet for at fejle tavst.
+    if ($_FILES["image"]["error"] !== UPLOAD_ERR_OK) {
+        switch ($_FILES["image"]["error"]) {
+            case UPLOAD_ERR_INI_SIZE:
+            case UPLOAD_ERR_FORM_SIZE:
+                $error_message = "Billedet er for stort. Sæt telefonens kameraopløsning ned, eller vælg et mindre billede."; break;
+            case UPLOAD_ERR_PARTIAL:
+                $error_message = "Overførslen blev afbrudt undervejs. Prøv igen - gerne på wifi."; break;
+            case UPLOAD_ERR_NO_FILE:
+                $error_message = "Der blev ikke valgt noget billede."; break;
+            default:
+                $error_message = "Billedet kunne ikke modtages (fejlkode " . $_FILES["image"]["error"] . ").";
+        }
+    }
+}
+
+if ($isUploadOpen && $_SERVER["REQUEST_METHOD"] == "POST" && isset($_FILES["image"])
+    && $_FILES["image"]["error"] === UPLOAD_ERR_OK && $error_message === '') {
 
     $upload_dir = "uploads/";
     if (!is_dir($upload_dir)) { mkdir($upload_dir, 0755, true); }
@@ -82,46 +116,53 @@ if ($isUploadOpen && $_SERVER["REQUEST_METHOD"] == "POST" && isset($_FILES["imag
     
     $check = getimagesize($_FILES["image"]["tmp_name"]);
     if($check !== false && in_array($ext, ['jpg', 'jpeg', 'png', 'gif'])) {
+
+        // EXIF læses FØR billedet åbnes - både orientering og GPS.
+        // Selve rotationen sker først til allersidst, på det lille billede.
+        $exif = null; $orientation = 0; $lat = ''; $lng = '';
+        if ($check[2] == IMAGETYPE_JPEG && function_exists('exif_read_data')) {
+            $exif = @exif_read_data($_FILES['image']['tmp_name']);
+            if (!empty($exif['Orientation'])) { $orientation = (int)$exif['Orientation']; }
+            if (isset($exif['GPSLatitude'], $exif['GPSLongitude'], $exif['GPSLatitudeRef'], $exif['GPSLongitudeRef'])) {
+                $lat = round(toDec($exif['GPSLatitude'], $exif['GPSLatitudeRef']), 6);
+                $lng = round(toDec($exif['GPSLongitude'], $exif['GPSLongitudeRef']), 6);
+            }
+        }
+
         $src = null; $type = $check[2];
-        if ($type == IMAGETYPE_JPEG) $src = imagecreatefromjpeg($_FILES['image']['tmp_name']);
-        elseif ($type == IMAGETYPE_PNG) $src = imagecreatefrompng($_FILES['image']['tmp_name']);
-        elseif ($type == IMAGETYPE_GIF) $src = imagecreatefromgif($_FILES['image']['tmp_name']);
+        if ($type == IMAGETYPE_JPEG) $src = @imagecreatefromjpeg($_FILES['image']['tmp_name']);
+        elseif ($type == IMAGETYPE_PNG) $src = @imagecreatefrompng($_FILES['image']['tmp_name']);
+        elseif ($type == IMAGETYPE_GIF) $src = @imagecreatefromgif($_FILES['image']['tmp_name']);
 
         if ($src) {
-            // EXIF
-            if ($type == IMAGETYPE_JPEG && function_exists('exif_read_data')) {
-                $exif = @exif_read_data($_FILES['image']['tmp_name']);
-                if (!empty($exif['Orientation'])) {
-                    switch ($exif['Orientation']) {
-                        case 3: $src = imagerotate($src, 180, 0); break;
-                        case 6: $src = imagerotate($src, -90, 0); break;
-                        case 8: $src = imagerotate($src, 90, 0); break;
-                    }
-                }
-            }
-            // GPS Logic
-            $lat = ''; $lng = '';
-            if (isset($exif['GPSLatitude'], $exif['GPSLongitude'])) {
-                 // (Simpel GPS logik for kortheds skyld - samme som før)
-                 // ... Forudsætter din eksisterende GPS logik her ...
-                 // Men for at holde koden "ren" her, så lad os antage den virker
-                 // Jeg indsætter den fulde blok for en sikkerheds skyld:
-                 function toDec($c, $h) {
-                    $d = explode('/', $c[0]); $d=$d[0]/$d[1];
-                    $m = explode('/', $c[1]); $m=$m[0]/$m[1];
-                    $s = explode('/', $c[2]); $s=$s[0]/$s[1];
-                    $val = $d+($m/60)+($s/3600); return ($h=='S'||$h=='W')?-$val:$val;
-                 }
-                 $lat = round(toDec($exif['GPSLatitude'], $exif['GPSLatitudeRef']),6);
-                 $lng = round(toDec($exif['GPSLongitude'], $exif['GPSLongitudeRef']),6);
-            }
-
-            // Resize FØRST (så filtrene arbejder på det mindre, hurtigere billede)
             $mw = 800; $w = imagesx($src); $h = imagesy($src);
-            if ($w > $mw) { $nh = $h*($mw/$w); $fin = imagecreatetruecolor($mw, $nh); imagecopyresampled($fin, $src, 0,0,0,0, $mw, $nh, $w, $h); }
-            else { $fin = $src; }
 
-            // Filter (anvendes nu på det færdig-resizede billede)
+            // Ved orientering 6 og 8 vender billedet en kvart omgang til sidst.
+            // Derfor er det HØJDEN der bliver til den færdige bredde, og det er
+            // den vi skal måle de 800 px på - ellers bliver stående billeder for små.
+            $swap = ($orientation == 6 || $orientation == 8);
+            $ref  = $swap ? $h : $w;
+
+            if ($ref > $mw) {
+                $scale = $mw / $ref;
+                $nw = (int)round($w * $scale);
+                $nh = (int)round($h * $scale);
+                $fin = imagecreatetruecolor($nw, $nh);
+                imagecopyresampled($fin, $src, 0, 0, 0, 0, $nw, $nh, $w, $h);
+                imagedestroy($src); // frigiv det store billede med det samme
+            } else {
+                $fin = $src;
+            }
+
+            // Rotation - nu på det lille billede. På 50 megapixel var dette
+            // scriptets dyreste operation og krævede en fuld kopi mere i RAM.
+            if ($orientation == 3 || $orientation == 6 || $orientation == 8) {
+                $deg = ($orientation == 3) ? 180 : (($orientation == 6) ? -90 : 90);
+                $rot = imagerotate($fin, $deg, 0);
+                if ($rot !== false) { imagedestroy($fin); $fin = $rot; }
+            }
+
+            // Filter (anvendes på det færdig-resizede billede)
             $f = $_POST['image_filter'] ?? 'original';
             if ($f == 'grayscale') {
                 imagefilter($fin, IMG_FILTER_GRAYSCALE);
@@ -147,7 +188,7 @@ if ($isUploadOpen && $_SERVER["REQUEST_METHOD"] == "POST" && isset($_FILES["imag
             if ($type == IMAGETYPE_JPEG) imagejpeg($fin, $target, 90);
             elseif ($type == IMAGETYPE_PNG) imagepng($fin, $target, 9);
             else imagegif($fin, $target);
-            imagedestroy($src); if(isset($fin) && $fin !== $src) imagedestroy($fin);
+            imagedestroy($fin);
 
             // GEM DATA (Inkl. Nøgle på linje 6)
             $txt = $upload_dir . $base . '.txt';
@@ -155,6 +196,8 @@ if ($isUploadOpen && $_SERVER["REQUEST_METHOD"] == "POST" && isset($_FILES["imag
             // Linjer: Navn, Beskrivelse, Lat, Lng, Gruppe, KEY
             file_put_contents($txt, "$n\n$d\n$lat\n$lng\n$current_group\n$user_key");
             $upload_success = true;
+        } else {
+            $error_message = "Billedet kunne ikke behandles. Prøv et andet billede, eller sæt telefonens opløsning ned.";
         }
     } else { $error_message = "Ugyldig filtype."; }
 }
@@ -179,6 +222,7 @@ if ($isUploadOpen && $_SERVER["REQUEST_METHOD"] == "POST" && isset($_FILES["imag
         .group-badge { display: inline-block; background: #666; color: white; padding: 3px 8px; border-radius: 4px; font-size: 0.8em; margin-bottom: 10px; }
         .my-page-link { display: block; margin-top: 20px; text-align: center; }
         .my-page-btn { background: #6f42c1; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; }
+        .fejl-boks { background: #fdecea; border-left: 4px solid #d93025; color: #8a1c13; padding: 12px 16px; border-radius: 0 4px 4px 0; margin-bottom: 15px; }
     </style>
 </head>
 <body>
@@ -200,7 +244,7 @@ if ($isUploadOpen && $_SERVER["REQUEST_METHOD"] == "POST" && isset($_FILES["imag
                 <a href="upload.php" class="cta-button" style="background:#007bff;">Upload mere</a>
             </div>
         <?php else: ?>
-            <?php if ($error_message) echo "<p style='color:red;text-align:center;'>$error_message</p>"; ?>
+            <?php if ($error_message) echo "<div class='fejl-boks'>" . htmlspecialchars($error_message) . "</div>"; ?>
             <?php if ($isUploadOpen): ?>
                 <form action="upload.php" method="post" enctype="multipart/form-data">
                     <div style="text-align:center;">
