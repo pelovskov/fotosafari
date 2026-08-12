@@ -16,9 +16,9 @@
  */
 
 $users = [
-    'lovskov' => '$2b$12$qBDoFNUW3fdVfL7WkHyAs..yYm/v58doIo/tqNvN6.XD4UYiQLphi',
-    'anna' => '$2b$12$GQ0MMkQEJzLpxiO0vUoCbujer/yNLflb87xGB5SyOiWYstr8vNBiu',
-    'peter' => '$2b$12$jKA4IRowrq4euf9jBixzz.uNo9.wtmvIB8nDCEF4g5j2uxBkCVvia',
+    'overadmin' => '$2y$12$1e49LzYQ2j559BSvwJjmXun/HrAcxD2UQa7sVJ4e8II5Ar8gGOmb2',
+    'anna' => '$2y$12$1e49LzYQ2j559BSvwJjmXun/HrAcxD2UQa7sVJ4e8II5Ar8gGOmb2',
+    'peter' => '$2y$12$1e49LzYQ2j559BSvwJjmXun/HrAcxD2UQa7sVJ4e8II5Ar8gGOmb2',
 ];
 
 ?>
